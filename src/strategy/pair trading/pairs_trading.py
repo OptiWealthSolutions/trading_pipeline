@@ -3,7 +3,7 @@ import vectorbt as vbt
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from statsmodels.tsa.stattools import adatauller
+from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 from scipy.optimize import minimize, differential_evolution
