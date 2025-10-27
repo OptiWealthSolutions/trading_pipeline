@@ -9,11 +9,11 @@ fred = Fred(api_key=API_KEY)
 data = fred.get_series('CPALTT01USM657N')
 
 # Differencing pour stationnarité
-df_diff = data.diff().dropna()
+data_diff = data.diff().dropna()
 
 # Séparer train/test
-train = df_diff[df_diff.index < "2019-01-01"]
-test = df_diff[df_diff.index >= "2019-01-01"]
+train = data_diff[data_diff.index < "2019-01-01"]
+test = data_diff[data_diff.index >= "2019-01-01"]
 
 # SARIMAX
 order = (2,1,1)

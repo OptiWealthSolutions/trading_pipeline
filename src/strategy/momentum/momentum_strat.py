@@ -9,7 +9,7 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.stattools import adatauller
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import f1_score
 from sklearn.feature_selection import SelectFromModel
@@ -26,7 +26,7 @@ class PurgedKFold:
         self.embargo_pct = embargo_pct
 
     def split(self, X, y=None, groups=None):
-        n_samples = X.shape[0] #nb de sample grace a la taille de la df_features
+        n_samples = X.shape[0] #nb de sample grace a la taille de la data_features
         test_size = n_samples // self.n_splits
         embargo = int(n_samples * self.embargo_pct)
 
@@ -47,8 +47,8 @@ class SampleWeights():
         self.labels = pd.Series(labels, index=timestamps)
         self.features = features
         self.n_samples = len(labels)
-        self.df = pd.DataFrame(features, index=timestamps)
-        self.df['labels'] = self.labels
+        self.data = pd.DataFrame(features, index=timestamps)
+        self.data['labels'] = self.labels
 
     def getIndMatrix(self, label_endtimes=None):
         if label_endtimes is None:
@@ -86,7 +86,7 @@ class SampleWeights():
         return pd.Series(avg_uniqueness, index=indicator_matrix.index)
 
     def getRarity(self):
-        returns = self.df['labels']
+        returns = self.data['labels']
         abs_returns = returns.abs()
         if abs_returns.sum() == 0:
             return pd.Series(np.ones(len(returns))/len(returns), index=returns.index)
@@ -126,66 +126,66 @@ class MomentumStrategy:
         self.INTERVAL = "1d"
         self.SHIFT = 4
         self.lags = [12]
-        self.df = self.getDataLoad()
-        self.df_features = pd.DataFrame()
-        self.meta_df = pd.DataFrame()
-        self.meta_features_df = pd.DataFrame()
+        self.data = self.getDataLoad()
+        self.data_features = pd.DataFrame()
+        self.meta_data = pd.DataFrame()
+        self.meta_features_data = pd.DataFrame()
         self.last_proba = None
         self.last_proba_meta = None
 
 
     # --- Data Loading ---
     def getDataLoad(self):
-        df = yf.download(self.ticker, period=self.PERIOD, interval=self.INTERVAL, progress= False)
-        df = df.dropna()
-        Q1 = df['Close'].quantile(0.25)
-        Q3 = df['Close'].quantile(0.75)
+        data = yf.download(self.ticker, period=self.PERIOD, interval=self.INTERVAL, progress= False)
+        data = data.dropna()
+        Q1 = data['Close'].quantile(0.25)
+        Q3 = data['Close'].quantile(0.75)
         IQR = Q3 - Q1
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
-        df = df[(df['Close'] >= lower_bound) & (df['Close'] <= upper_bound)]
-        df['log_return'] = np.log(df['Close'] / df['Close'].shift(1))
-        df['return'] = df['Close'].pct_change(self.SHIFT).shift(-self.SHIFT)
-        df.dropna(inplace=True)
-        return df
+        data = data[(data['Close'] >= lower_bound) & (data['Close'] <= upper_bound)]
+        data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
+        data['return'] = data['Close'].pct_change(self.SHIFT).shift(-self.SHIFT)
+        data.dropna(inplace=True)
+        return data
 
     # --- Feature Engineering ---
     def getRSI(self):
-        self.df['RSI'] = self.df['Close'].diff().pipe(lambda x: x.clip(lower=0)).ewm(alpha=1/14, adjust=False).mean() / self.df['Close'].diff().pipe(lambda x: -x.clip(upper=0)).ewm(alpha=1/14, adjust=False).mean()
-        self.df['RSI'] = 100 - (100 / (1 + self.df['RSI']))
-        return self.df
+        self.data['RSI'] = self.data['Close'].diff().pipe(lambda x: x.clip(lower=0)).ewm(alpha=1/14, adjust=False).mean() / self.data['Close'].diff().pipe(lambda x: -x.clip(upper=0)).ewm(alpha=1/14, adjust=False).mean()
+        self.data['RSI'] = 100 - (100 / (1 + self.data['RSI']))
+        return self.data
     
     def PriceMomentum(self):
-        self.df['PriceMomentum'] = (self.df['Close'] / self.df['Close'].shift(12) - 1) * 100
-        return self.df
+        self.data['PriceMomentum'] = (self.data['Close'] / self.data['Close'].shift(12) - 1) * 100
+        return self.data
     
     def getLagReturns(self):
         for n in self.lags:
-            self.df[f'RETURN_LAG_{n}'] = np.log(self.df['Close'] / self.df['Close'].shift(n))
-        return self.df
+            self.data[f'RETURN_LAG_{n}'] = np.log(self.data['Close'] / self.data['Close'].shift(n))
+        return self.data
     
     def PriceAccel(self):
-        self.df['velocity'] = self.df['log_return']
-        self.df['acceleration'] = self.df['log_return'].diff()    
-        return self.df
+        self.data['velocity'] = self.data['log_return']
+        self.data['acceleration'] = self.data['log_return'].diff()    
+        return self.data
     
     def getPct52WeekHigh(self):
-        w_high = self.df['High'].rolling(window=252).max()
-        self.df['Pct52WeekHigh'] = self.df['Close'] / w_high
-        return self.df
+        w_high = self.data['High'].rolling(window=252).max()
+        self.data['Pct52WeekHigh'] = self.data['Close'] / w_high
+        return self.data
     
     def getPct52WeekLow(self):
-        w_low = self.df['Low'].rolling(window=252).min()
-        self.df['Pct52WeekLow'] = self.df['Close'] / w_low
-        return self.df
+        w_low = self.data['Low'].rolling(window=252).min()
+        self.data['Pct52WeekLow'] = self.data['Close'] / w_low
+        return self.data
     
     def get12MonthPriceMomentum(self):
-        self.df['12MonthPriceMomentum'] = (self.df['Close'] / self.df['Close'].shift(252) - 1) * 100
-        return self.df
+        self.data['12MonthPriceMomentum'] = (self.data['Close'] / self.data['Close'].shift(252) - 1) * 100
+        return self.data
     
     def getVol(self):
-        self.df['MonthlyVol'] = self.df['Close'].pct_change().rolling(window=20).std()
-        return self.df
+        self.data['MonthlyVol'] = self.data['Close'].pct_change().rolling(window=20).std()
+        return self.data
         
     def getMacroData(self):
         import pandas_datareader.data as web
@@ -199,23 +199,23 @@ class MomentumStrategy:
             twi = twi.resample("D").last()
             twi = twi['DTWEXBGS']
         except:
-            twi = pd.Series(index=self.df.index, data=np.nan)
+            twi = pd.Series(index=self.data.index, data=np.nan)
 
         # Réindexer et forward-fill
-        self.df['DXY'] = dxy.reindex(self.df.index, method='ffill')
-        self.df['TWI'] = twi.reindex(self.df.index, method='ffill')
-        return self.df
+        self.data['DXY'] = dxy.reindex(self.data.index, method='ffill')
+        self.data['TWI'] = twi.reindex(self.data.index, method='ffill')
+        return self.data
 
     # --- Dataset Preparation ---
     def getFeaturesDataSet(self):
-        self.df_features = self.df.drop(['High', 'Low', 'Open', 'Volume', 'Close', 'Return', 'Velocity'], axis=1, errors='ignore')
-        return self.df_features
+        self.data_features = self.data.drop(['High', 'Low', 'Open', 'Volume', 'Close', 'Return', 'Velocity'], axis=1, errors='ignore')
+        return self.data_features
 
 
     # --- Labeling / Weights ---
     def getLabels(self, max_hold_days=12, stop_loss=0.01, profit_target=0.05, volatility_scaling=True):
         # Barrières adaptatives à la volatilité, avec enregistrement du facteur d'ajustement
-        prices = self.df['Close']
+        prices = self.data['Close']
         n = len(prices)
         prices_array = prices.values
         labels = np.zeros(n)
@@ -282,17 +282,17 @@ class MomentumStrategy:
             vol_adj_arr.append(vol_adj)
 
         # Mise à jour du DataFrame
-        self.df['Target'] = labels
-        self.df['label_entry_date'] = entry_dates
-        self.df['label_exit_date'] = exit_dates
-        self.df['label_entry_price'] = entry_prices
-        self.df['label_exit_price'] = exit_prices
-        self.df['label_return'] = returns_pct
-        self.df['label_hold_days'] = hold_days
-        self.df['label_barrier_hit'] = barrier_hit
-        self.df['vol_adjustment'] = vol_adj_arr
+        self.data['Target'] = labels
+        self.data['label_entry_date'] = entry_dates
+        self.data['label_exit_date'] = exit_dates
+        self.data['label_entry_price'] = entry_prices
+        self.data['label_exit_price'] = exit_prices
+        self.data['label_return'] = returns_pct
+        self.data['label_hold_days'] = hold_days
+        self.data['label_barrier_hit'] = barrier_hit
+        self.data['vol_adjustment'] = vol_adj_arr
 
-        return self.df
+        return self.data
     def getSampleWeight(self, decay=0.01):
         """Compute and store sample weights using the SampleWeights helper class.
 
@@ -300,12 +300,12 @@ class MomentumStrategy:
         (getIndMatrix, getRarity, ...) on the MomentumStrategy instance.
         """
         # Instantiate helper with labels, features and timestamps
-        sw = SampleWeights(labels=self.df['Target'], features=self.df_features, timestamps=self.df.index)
+        sw = SampleWeights(labels=self.data['Target'], features=self.data_features, timestamps=self.data.index)
 
         # Prefer explicit label end times if available (label_exit_date), otherwise leave None
         label_endtimes = None
-        if 'label_exit_date' in self.df.columns:
-            label_endtimes = self.df['label_exit_date']
+        if 'label_exit_date' in self.data.columns:
+            label_endtimes = self.data['label_exit_date']
 
         # Build indicator matrix and weight components via the helper
         indicator_matrix = sw.getIndMatrix(label_endtimes=label_endtimes)
@@ -326,24 +326,24 @@ class MomentumStrategy:
             combined = combined / combined.sum()
         else:
             # fallback: uniform weights over full dataset
-            combined = pd.Series(np.ones(len(self.df.index)) / len(self.df.index), index=self.df.index)
+            combined = pd.Series(np.ones(len(self.data.index)) / len(self.data.index), index=self.data.index)
 
         # Reindex to the full dataframe index and fill missing with 0
-        full_weights = combined.reindex(self.df.index).fillna(0)
+        full_weights = combined.reindex(self.data.index).fillna(0)
 
         # Store in the main dataframe for later use by PrimaryModel
-        self.df['SampleWeight'] = full_weights
+        self.data['SampleWeight'] = full_weights
 
         return full_weights
     # --- Primary Model ---
     def PrimaryModel(self, n_splits=5):
-        # S'assurer que df_features est bien initialisé
-        if not hasattr(self, 'df_features') or self.df_features.empty:
+        # S'assurer que data_features est bien initialisé
+        if not hasattr(self, 'data_features') or self.data_features.empty:
             self.getFeaturesDataSet()
-        X = self.df_features.values 
-        y = self.df['Target'].values
-        self.df['Target'].to_csv(f'target_{self.ticker}.csv')
-        sample_weights = self.df['SampleWeight'].values  # poids calculés
+        X = self.data_features.values 
+        y = self.data['Target'].values
+        self.data['Target'].to_csv(f'target_{self.ticker}.csv')
+        sample_weights = self.data['SampleWeight'].values  # poids calculés
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
@@ -381,42 +381,42 @@ class MomentumStrategy:
         print(f"Average F1 Score : {round(np.mean(f1_score_)*100,2)} %")
         # Générer les signaux du modèle principal pour toutes les dates
         primary_preds = model.predict(X_scaled)
-        self.df['primary_signal'] = primary_preds
+        self.data['primary_signal'] = primary_preds
         last_pred = primary_preds[-1]
         print("Last prediction", last_pred)
         last_proba = model.predict_proba(X_test)[-1]
         print(f"Last prediction probability: {last_proba}")
-        self.meta_df = pd.DataFrame(model.predict_proba(X_scaled), index=self.df.index)
+        self.meta_data = pd.DataFrame(model.predict_proba(X_scaled), index=self.data.index)
         # Stocker les prédictions pour les meta-features
         self.primary_predictions = primary_preds
         self.last_proba = last_proba
         self.last_pred = last_pred
-        return self.meta_df, last_proba
+        return self.meta_data, last_proba
 
     # --- Meta Features ---
     def getEntropy(self):
-        probabilities = self.meta_df.values
+        probabilities = self.meta_data.values
         # Éviter log(0) en ajoutant un epsilon
         epsilon = 1e-10
         probabilities = np.clip(probabilities, epsilon, 1 - epsilon)
         # Calcul de l'entropie : -sum(p * log(p))
         entropy = -np.sum(probabilities * np.log(probabilities), axis=1)
-        self.meta_features_df['prediction_entropy'] = entropy 
+        self.meta_features_data['prediction_entropy'] = entropy 
         return 
 
     def getMaxProbability(self):
-        max_probs = np.max(self.meta_df.values, axis=1)
-        self.meta_features_df['max_probability'] = max_probs 
+        max_probs = np.max(self.meta_data.values, axis=1)
+        self.meta_features_data['max_probability'] = max_probs 
         return 
     
     def getMarginConfidence(self):
-        probs = self.meta_df.values
+        probs = self.meta_data.values
         sorted_probs = np.sort(probs, axis=1)
         margin = sorted_probs[:, -1] - sorted_probs[:, -2]  # Plus haute - 2ème plus haute
-        self.meta_features_df['margin_confidence'] = margin
+        self.meta_features_data['margin_confidence'] = margin
         return margin
     
-    def getF1ScoreDF(self, y_true, y_pred, window_size=50):
+    def getF1Scoredata(self, y_true, y_pred, window_size=50):
         """Calcule le F1-score sur une fenêtre glissante pour tout le dataset"""
         rolling_f1 = []
         for i in range(len(y_pred)):
@@ -431,10 +431,10 @@ class MomentumStrategy:
             else:
                 window_f1 = 0.0
             rolling_f1.append(window_f1)
-        self.meta_features_df['f1_score'] = rolling_f1
+        self.meta_features_data['f1_score'] = rolling_f1
         return rolling_f1
 
-    def getAccuracyDF(self, y_true, y_pred, window_size=50):
+    def getAccuracydata(self, y_true, y_pred, window_size=50):
         """Calcule l'accuracy sur une fenêtre glissante pour tout le dataset"""
         rolling_acc = []
         for i in range(len(y_pred)):
@@ -448,11 +448,11 @@ class MomentumStrategy:
             else:
                 window_acc = 0.0
             rolling_acc.append(window_acc)
-        self.meta_features_df['accuracy'] = rolling_acc
+        self.meta_features_data['accuracy'] = rolling_acc
         return rolling_acc
 
-    def getMetaFeaturesDf(self):
-        return self.meta_features_df
+    def getMetaFeaturesdata(self):
+        return self.meta_features_data
 
     #=== Tableau de comprehension du duo primary et meta model ===
     # 1 et 1 =-> Strong BUY
@@ -466,21 +466,21 @@ class MomentumStrategy:
     def metaLabeling(self):
         # Utiliser les prédictions du modèle principal pour déterminer les signaux
         model_predictions = self.primary_predictions != 0  # True si le modèle a généré un signal
-        actual_profitable = self.df['label_return'] > 0     # True si le trade était profitable
+        actual_profitable = self.data['label_return'] > 0     # True si le trade était profitable
         
         # Meta-label: 1 si signal ET profitable, 0 sinon
         meta_labels = (model_predictions & actual_profitable).astype(int)
         
-        # Créer le DataFrame meta_df à partir des dates correspondantes
-        self.meta_df = pd.DataFrame(index=self.df.index)
-        self.meta_df['meta_label'] = meta_labels
+        # Créer le DataFrame meta_data à partir des dates correspondantes
+        self.meta_data = pd.DataFrame(index=self.data.index)
+        self.meta_data['meta_label'] = meta_labels
         
         return
     
     # --- Meta Model ---
     def MetaModel(self):
-        X = self.meta_features_df.values
-        y = self.meta_df['meta_label'].values
+        X = self.meta_features_data.values
+        y = self.meta_data['meta_label'].values
         
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
@@ -513,7 +513,7 @@ class MomentumStrategy:
         print(f"Average F1 Score Meta Model: {round(np.mean(f1_score_)*100,2)} %")
         # Prédire les signaux méta sur tout l'historique
         self.meta_preds = meta_model.predict(X_scaled)
-        self.df['meta_signal'] = self.meta_preds
+        self.data['meta_signal'] = self.meta_preds
         last_pred = self.meta_preds[-1]
         print(f"Meta Model Last Prediction: {last_pred}")
         last_proba_meta = meta_model.predict_proba(X_test)[-1]
@@ -542,8 +542,8 @@ class BetSizing():
         self.leverage = 30
     # Taille de la position = Taille du compte x Risque du compte / Point d'invalidation
     def getlastPrice(self):
-        df = yf.download(self.ticker, period="1d", interval='1m', progress=False)['Close']
-        last_price = float(df.iloc[-1])
+        data = yf.download(self.ticker, period="1d", interval='1m', progress=False)['Close']
+        last_price = float(data.iloc[-1])
         return last_price
 
     def position_size_with_atr(self, capital, risk_pct, entry_price, atr_value, atr_mult=2):
@@ -570,16 +570,16 @@ class BetSizing():
 class backtest():
     def __init__(self, ms):
         self.ms = ms  # stocke l'objet MomentumStrategy
-        self.df_backtest = self.ms.df.loc["2012-01-01":"2025-01-01"].copy()
-        self.df_backtest['signal'] = 0
-        self.df_backtest.loc[(self.df_backtest['primary_signal'] == 1) & (self.df_backtest['meta_signal'] == 1), 'signal'] = 1
-        self.df_backtest.loc[(self.df_backtest['primary_signal'] == -1) & (self.df_backtest['meta_signal'] == 1), 'signal'] = -1
-        self.entries = self.df_backtest['signal'] == 1
-        self.exits   = self.df_backtest['signal'] == -1
+        self.data_backtest = self.ms.data.loc["2012-01-01":"2025-01-01"].copy()
+        self.data_backtest['signal'] = 0
+        self.data_backtest.loc[(self.data_backtest['primary_signal'] == 1) & (self.data_backtest['meta_signal'] == 1), 'signal'] = 1
+        self.data_backtest.loc[(self.data_backtest['primary_signal'] == -1) & (self.data_backtest['meta_signal'] == 1), 'signal'] = -1
+        self.entries = self.data_backtest['signal'] == 1
+        self.exits   = self.data_backtest['signal'] == -1
 
     def portfolio(self):
         self.pf = vbt.Portfolio.from_signals(
-            close=self.df_backtest['Close'],
+            close=self.data_backtest['Close'],
             entries=self.entries,
             exits=self.exits,
             init_cash=10_000,
@@ -589,10 +589,10 @@ class backtest():
         
         print("\n=== VECTORBT BACKTEST RESULTS ===")
         print(self.pf.stats())
-        self.df_backtest['portfolio_value'] = self.pf.value()
+        self.data_backtest['portfolio_value'] = self.pf.value()
         sharpe_ratio = self.pf.sharpe_ratio()
         print(f"Sharpe ratio: {sharpe_ratio}")
-        self.df_backtest['portfolio_value'].plot()
+        self.data_backtest['portfolio_value'].plot()
         plt.show()
 
         return self.ms
@@ -608,8 +608,8 @@ ticker_list = [
 
 def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score):
     # Get last row index (date)
-    primary_signal = ms.df['primary_signal'].iloc[-1] if 'primary_signal' in ms.df.columns else 0
-    meta_signal = ms.df['meta_signal'].iloc[-1] if 'meta_signal' in ms.df.columns else 0
+    primary_signal = ms.data['primary_signal'].iloc[-1] if 'primary_signal' in ms.data.columns else 0
+    meta_signal = ms.data['meta_signal'].iloc[-1] if 'meta_signal' in ms.data.columns else 0
     signal = None
     if (primary_signal == 1) and (meta_signal == 1):
         signal = "BUY"
@@ -649,9 +649,9 @@ def main(ticker):
     ms.getEntropy()
     ms.getMaxProbability()
     ms.getMarginConfidence()
-    ms.getF1ScoreDF(ms.df['Target'], ms.primary_predictions)
-    ms.getAccuracyDF(ms.df['Target'], ms.primary_predictions)
-    ms.getMetaFeaturesDf()
+    ms.getF1Scoredata(ms.data['Target'], ms.primary_predictions)
+    ms.getAccuracydata(ms.data['Target'], ms.primary_predictions)
+    ms.getMetaFeaturesdata()
     ms.metaLabeling()
     ms.MetaModel()
     conf_score = ms.computeConfidenceScore()
@@ -662,36 +662,36 @@ def main(ticker):
     capital = 885
     risk_pct = 0.0025
     ##### ==== #faire un risque adapté au position deja ouverte ====
-    if 'log_return' in ms.df.columns:
-        atr_value = ms.df['log_return'].rolling(14).std().iloc[-1]
+    if 'log_return' in ms.data.columns:
+        atr_value = ms.data['log_return'].rolling(14).std().iloc[-1]
     else:
         atr_value = 0.01
     shares, stop = bs.position_size_with_atr(capital, risk_pct, last_price, atr_value)
 
     # Summarize signal
-    summary_df = summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score)
+    summary_data = summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score)
 
     # bt = backtest(ms)
     # bt.portfolio()
-    return ms, summary_df
+    return ms, summary_data
 
 if __name__ == "__main__":
     results = {}
     summaries = []
     for ticker in ticker_list:
         try:
-            ms, summary_df = main(ticker)
+            ms, summary_data = main(ticker)
             results[ticker] = ms
-            if summary_df is not None and not summary_df.empty:
-                summaries.append(summary_df)
+            if summary_data is not None and not summary_data.empty:
+                summaries.append(summary_data)
         except Exception as e:
             print(f"Erreur sur {ticker}: {e}")
 
     # Concatenate all summaries and print
     if summaries:
-        df_summary = pd.concat(summaries, ignore_index=True)
+        data_summary = pd.concat(summaries, ignore_index=True)
         print("\n=== SIGNAL SUMMARY ===")
-        print(df_summary)
+        print(data_summary)
         # Save summary to CSV for each ticker
         for summary in summaries:
             if not summary.empty and "ticker" in summary.columns:

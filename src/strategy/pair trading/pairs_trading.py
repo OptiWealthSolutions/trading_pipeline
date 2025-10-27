@@ -3,7 +3,7 @@ import vectorbt as vbt
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.stattools import adatauller
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 from scipy.optimize import minimize, differential_evolution
@@ -30,9 +30,9 @@ def getSerie2():
     
 # Engel-Granger
 
-def computeADF(data): #we want p-valu <= 0.05 in order to reject H0
-    result = adfuller(data.dropna())
-    print(f"ADF Statistic: {result[0]}")
+def computeAdata(data): #we want p-valu <= 0.05 in order to reject H0
+    result = adatauller(data.dropna())
+    print(f"Adata Statistic: {result[0]}")
     print(f"p-value: {result[1]}")
     print("Critical Values:")
     for key, value in result[4].items():
@@ -41,9 +41,9 @@ def computeADF(data): #we want p-valu <= 0.05 in order to reject H0
 
 def getRegression(serie1,serie2):
     # realignement des index
-    df = pd.concat([serie1, serie2], axis=1).dropna()
-    X = sm.add_constant(df.iloc[:, 0])
-    y = df.iloc[:, 1]
+    data = pd.concat([serie1, serie2], axis=1).dropna()
+    X = sm.add_constant(data.iloc[:, 0])
+    y = data.iloc[:, 1]
     model = sm.OLS(y, X)
     results = model.fit()
     residuals = results.resid
@@ -62,19 +62,19 @@ def getZScore(resid):
 serie1 = getSerie1()
 serie2 = getSerie2()
 
-# Calcul ADF sur les séries
-print("ADF test for serie1:")
-computeADF(serie1)
-print("\nADF test for serie2:")
-computeADF(serie2)
+# Calcul Adata sur les séries
+print("Adata test for serie1:")
+computeAdata(serie1)
+print("\nAdata test for serie2:")
+computeAdata(serie2)
 
 # Calcul des résidus de la regression
 results, residual = getRegression(serie1, serie2)
 alpha = results.params[0]
 beta = results.params[1]
 
-print("\nADF test for residuals:")
-computeADF(residual)
+print("\nAdata test for residuals:")
+computeAdata(residual)
 
 # Calcul du z-score
 z_score = getZScore(residual)
@@ -200,12 +200,12 @@ plt.show()
 
 # Évaluation des performances sur le spread (backtest corrigé - positions asset-level)
 # On re-synchronise les séries et on calcule les rendements en tenant compte des positions sur chaque actif
-df = pd.concat([serie1, serie2], axis=1).dropna()
-df.columns = ['serie1', 'serie2']
+data = pd.concat([serie1, serie2], axis=1).dropna()
+data.columns = ['serie1', 'serie2']
 
-# Réindex positions/signals sur df
-signals = signals.reindex(df.index).fillna(0)
-positions = positions.reindex(df.index).fillna(method='ffill').fillna(0)
+# Réindex positions/signals sur data
+signals = signals.reindex(data.index).fillna(0)
+positions = positions.reindex(data.index).fillna(method='ffill').fillna(0)
 
 # Paramètres de la régression
 alpha = results.params[0]
@@ -218,8 +218,8 @@ h2 = pos_exec * 1.0            # holdings on serie2 (long = +1)
 h1 = pos_exec * (-beta)        # holdings on serie1 (negative = short beta)
 
 # Prix et variations
-p1 = df['serie1']
-p2 = df['serie2']
+p1 = data['serie1']
+p2 = data['serie2']
 dp1 = p1.diff()
 dp2 = p2.diff()
 p1_prev = p1.shift(1)

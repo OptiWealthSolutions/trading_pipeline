@@ -4,22 +4,24 @@ import matplotlib.pyplot as plt
 
 def analyze_seasonality(ticker: str):
     # Téléchargement des données sur 10 ans
-    data = yf.download(ticker, period="10y", interval="1mo")['Adj Close'].dropna()
+    data = yf.download(ticker, period="10y", interval="1mo").dropna()
+    
+    prices = data['Close']
 
     # Calcul des rendements mensuels
-    returns = data.pct_change().dropna()
+    returns = prices.pct_change().dropna()
 
     # Ajout des colonnes d'année et de mois
-    df = pd.DataFrame({"Return": returns})
-    df["Year"] = df.index.year
-    df["Month"] = df.index.month_name()
+    data['return'] = returns
+    data["Year"] = data.index.year
+    data["Month"] = data.index.month_name()
 
     # Rendements moyens mensuels sur 10 ans
-    mean_10y = df.groupby("Month")["Return"].mean().sort_index(key=lambda x: pd.to_datetime(x, format="%B"))
+    mean_10y = data.groupby("Month")["return"].mean().sort_index(key=lambda x: pd.to_datetime(x, format="%B"))
 
     # Rendements moyens mensuels sur 5 ans
-    recent_df = df[df["Year"] >= df["Year"].max() - 5]
-    mean_5y = recent_df.groupby("Month")["Return"].mean().sort_index(key=lambda x: pd.to_datetime(x, format="%B"))
+    recent_data = data[data["Year"] >= data["Year"].max() - 5]
+    mean_5y = recent_data.groupby("Month")["return"].mean().sort_index(key=lambda x: pd.to_datetime(x, format="%B"))
 
     # Tableau des meilleurs et pires mois sur 10 ans
     ranking = mean_10y.sort_values(ascending=False).reset_index()
@@ -43,4 +45,5 @@ def analyze_seasonality(ticker: str):
 
     return ranking
 
+# Exemple
 analyze_seasonality("AAPL")
