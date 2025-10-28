@@ -1,9 +1,9 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-ticker = "AAPL"
+ticker = "EURUSD=X"
 
 data = yf.download(ticker,period="1y",interval="1h")
 data['vol'] = data['Close'].std()
@@ -28,13 +28,28 @@ print(high_60)
 pct_max_60_minute = data_minute['vol_60_minute'].iloc[-1]/high_60
 print(round((pct_max_60_minute*100),2),"%")
 
-plt.style.use('dark_background')
-plt.plot(data['vol_60'])
-plt.plot(data["vol_24"],alpha=0.5,color='green')
-plt.show()
+# --- Graphique volatilité horaire ---
+fig_hour = go.Figure()
+fig_hour.add_trace(go.Scatter(x=data.index, y=data["vol_60"], mode="lines", name="Vol 60h", line=dict(color="orange")))
+fig_hour.add_trace(go.Scatter(x=data.index, y=data["vol_24"], mode="lines", name="Vol 24h", line=dict(color="green", dash="dot")))
+fig_hour.update_layout(
+    title=f"{ticker} - Volatilité horaire (1 an)",
+    xaxis_title="Date",
+    yaxis_title="Volatilité (écart-type)",
+    template="plotly_dark",
+    legend_title="Fenêtre"
+)
+fig_hour.show()
 
-plt.plot(data_minute['vol_60_minute'])
-plt.plot(data_minute["vol_24_minute"],alpha=0.5,color='green')
-plt.show()
-
-plt.show()
+# --- Graphique volatilité 15 minutes ---
+fig_minute = go.Figure()
+fig_minute.add_trace(go.Scatter(x=data_minute.index, y=data_minute["vol_60_minute"], mode="lines", name="Vol 60m", line=dict(color="cyan")))
+fig_minute.add_trace(go.Scatter(x=data_minute.index, y=data_minute["vol_24_minute"], mode="lines", name="Vol 24m", line=dict(color="magenta", dash="dot")))
+fig_minute.update_layout(
+    title=f"{ticker} - Volatilité 15 min (1 mois)",
+    xaxis_title="Date",
+    yaxis_title="Volatilité (écart-type)",
+    template="plotly_dark",
+    legend_title="Fenêtre"
+)
+fig_minute.show()

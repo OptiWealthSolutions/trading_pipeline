@@ -47,5 +47,30 @@ def analyze_seasonality(ticker: str):
 
 # Exemple
 tickers = ["EURUSD=X", "GBPUSD=X","USDJPY=X",'NZDUSD=X','USDCAD=X']
+
+all_means = {}
+
 for i in tickers:
-    analyze_seasonality(i)
+    # Téléchargement et calcul
+    data = yf.download(i, period="10y", interval="1mo").dropna()
+    prices = data['Close']
+    returns = prices.pct_change().dropna()
+    data['return'] = returns
+    data["Year"] = data.index.year
+    data["Month"] = data.index.month_name()
+    mean_10y = data.groupby("Month")["return"].mean().sort_index(key=lambda x: pd.to_datetime(x, format="%B"))
+    all_means[i] = mean_10y
+
+plt.style.use('dark_background')
+# Tracer toutes les saisonnalités
+plt.figure(figsize=(12, 6))
+for ticker, mean in all_means.items():
+    plt.plot(mean.index, mean.values * 100, marker='o', label=ticker)
+
+plt.title("Saisonnalité moyenne à 10 ans (tous actifs)", color='white')
+plt.xlabel("Mois", color='white')
+plt.ylabel("Rendement moyen (%)", color='white')
+plt.legend(facecolor='black', edgecolor='white', labelcolor='white')
+plt.grid(True, color='gray', linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.show()
