@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+USDCAD=X,SELL,1.399899959564209,445,1.3949369501326054,0.7179131734481526,1.5883828962540376

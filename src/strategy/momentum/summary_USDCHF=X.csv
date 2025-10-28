@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+USDCHF=X,SELL,0.7947999835014343,362,0.7886997915114746,0.5724495463594184,1.2665446213202132

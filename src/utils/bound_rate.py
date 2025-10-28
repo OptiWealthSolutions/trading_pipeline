@@ -72,7 +72,7 @@ plt.style.use('dark_background')
 fig = plt.figure(figsize=(16, 12))
 
 ax1 = plt.subplot(3, 2, 1)
-colors_spread = {'USD': '#00ff41', 'EUR': '#ff006e', 'GBP': '#ffbe0b', 
+colors_spread = {'USD': '#00ff41', 'EUR': "#bfcc6b", 'GBP': '#ffbe0b', 
                  'JPY': '#8338ec', 'CAD': '#3a86ff'}
 
 for devise in df_spreads_recent.columns:
@@ -226,6 +226,16 @@ print(f"   → Taux 3M: {devise_max_spread['Taux Court']:.2f}% | Taux 10Y: {devi
 print(f"\n⚠️  Spread le plus faible: {devise_min_spread['Devise']} ({devise_min_spread['Nom']})")
 print(f"   → Spread: {devise_min_spread['Spread Actuel']:.2f}%")
 print(f"   → Taux 3M: {devise_min_spread['Taux Court']:.2f}% | Taux 10Y: {devise_min_spread['Taux Long']:.2f}%")
+
+# 2. Interprétation
+# 	•	Spread positif et élevé → courbe des taux pentue.
+# 	•	Attentes de croissance et d’inflation futures élevées.
+# 	•	Les investisseurs demandent une prime pour le risque et la durée.
+# 	•	En général, signe d’expansion économique.
+# 	•	Spread faible ou négatif (inversion) → courbe plate ou inversée.
+# 	•	Le marché anticipe une baisse future des taux liée à un ralentissement ou récession.
+# 	•	Phénomène souvent observé avant les récessions américaines.
+
 
 if devise_min_spread['Spread Actuel'] < 0:
     print(f"\n⚠️  ATTENTION: Courbe inversée pour {devise_min_spread['Devise']}!")

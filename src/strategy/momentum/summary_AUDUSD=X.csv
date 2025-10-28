@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+AUDUSD=X,SELL,0.6554368734359741,436,0.650373121279365,0.6694929900546642,1.4812532404959446

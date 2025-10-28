@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+EURGBP=X,SELL,0.8733000159263611,591,0.8695619078224821,0.5401070216377916,1.1949867853736138

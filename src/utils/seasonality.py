@@ -46,4 +46,6 @@ def analyze_seasonality(ticker: str):
     return ranking
 
 # Exemple
-analyze_seasonality("AAPL")
+tickers = ["EURUSD=X", "GBPUSD=X","USDJPY=X",'NZDUSD=X','USDCAD=X']
+for i in tickers:
+    analyze_seasonality(i)

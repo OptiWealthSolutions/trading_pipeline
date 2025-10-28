@@ -9,7 +9,6 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from statsmodels.tsa.stattools import adatauller
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import f1_score
 from sklearn.feature_selection import SelectFromModel
@@ -20,6 +19,11 @@ from sklearn.metrics import roc_auc_score
 from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 import os 
+# --- PDF reportlab imports ---
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 class PurgedKFold:
     def __init__(self, n_splits=5, embargo_pct=0.01):
         self.n_splits = n_splits
@@ -599,9 +603,7 @@ class backtest():
 
 
 ticker_list = [
-     "EURUSD=X", 
-        "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X",
-        "NZDUSD=X", "EURJPY=X", "EURGBP=X", "EURCHF=X"
+     "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X","NZDUSD=X", "EURJPY=X", "EURGBP=X", "EURCHF=X"
 ]
 
 
@@ -697,6 +699,35 @@ if __name__ == "__main__":
             if not summary.empty and "ticker" in summary.columns:
                 ticker = summary["ticker"].iloc[0]
                 summary.to_csv(f"summary_{ticker}.csv", index=False)
+
+        # --- Export PDF Summary ---
+        try:
+            pdf_path = "summary_signals.pdf"
+            doc = SimpleDocTemplate(pdf_path, pagesize=A4)
+            elements = []
+            styles = getSampleStyleSheet()
+            title = Paragraph("Trading Signal Summary Report", styles["Heading1"])
+            elements.append(title)
+            elements.append(Spacer(1, 12))
+
+            # Convert DataFrame to list for table creation
+            table_data = [list(data_summary.columns)] + data_summary.values.tolist()
+            table = Table(table_data)
+            table_style = TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ])
+            table.setStyle(table_style)
+            elements.append(table)
+
+            doc.build(elements)
+            print(f"PDF summary saved as: {pdf_path}")
+        except Exception as e:
+            print(f"Erreur lors de la génération du PDF: {e}")
     else:
         print("\nNo valid signals to summarize.")
 

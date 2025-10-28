@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+EURUSD=X,SELL,1.1659088134765625,286,1.158173733555723,0.554595131781582,1.2270417290667501
