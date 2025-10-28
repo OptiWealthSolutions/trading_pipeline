@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+JPM,SELL,304.1499938964844,0,296.7719091595744,0.5791961655600644,1.2814715163016424

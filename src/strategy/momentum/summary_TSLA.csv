@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+TSLA,SELL,452.3500061035156,0,421.49052716011,0.7538181428404938,1.6678226410345924

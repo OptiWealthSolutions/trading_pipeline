@@ -126,7 +126,7 @@ class SampleWeights():
 class MomentumStrategy:
     def __init__(self, ticker):
         self.ticker = ticker
-        self.PERIOD = "15y"
+        self.PERIOD = "25y"
         self.INTERVAL = "1d"
         self.SHIFT = 4
         self.lags = [12]
@@ -511,10 +511,23 @@ class MomentumStrategy:
             reports.append(classification_report(y_test, y_pred, output_dict=True))
             cms.append(confusion_matrix(y_test, y_pred))
             f1_score_.append(f1_score(y_test, y_pred, average='weighted'))
+
+        # Calcul de l'ATR (14 jours rolling)
+        high = self.data['High'] if 'High' in self.data.columns else self.data['Close']
+        low = self.data['Low'] if 'Low' in self.data.columns else self.data['Close']
+        close = self.data['Close']
+        tr = pd.concat([
+            high - low,
+            (high - close.shift(1)).abs(),
+            (low - close.shift(1)).abs()
+        ], axis=1).max(axis=1)
+        atr_value = tr.rolling(14).mean().iloc[-1]
+
         # Prédictions
         print("\n=== META MODEL RESULTS ===")
         print(f"Average Accuracy Meta Model: {round((np.mean(scores)*100),2)} %")
         print(f"Average F1 Score Meta Model: {round(np.mean(f1_score_)*100,2)} %")
+        print(f"Average ATR (14 days): {round(atr_value, 4)}")
         # Prédire les signaux méta sur tout l'historique
         self.meta_preds = meta_model.predict(X_scaled)
         self.data['meta_signal'] = self.meta_preds
@@ -522,7 +535,6 @@ class MomentumStrategy:
         print(f"Meta Model Last Prediction: {last_pred}")
         last_proba_meta = meta_model.predict_proba(X_test)[-1]
         print(f"Meta Model Last Prediction Probability: {last_proba_meta}")
-        # Information Ratio (IR): Measures the consistency of a predictive signal, calculated as the mean of the Information Coefficient divided by its standard deviation (E[IC] / σ[IC])
         #variable for backtesting functionnement
         self.last_proba_meta = last_proba_meta
         self.last_pred_meta = last_pred
@@ -603,7 +615,13 @@ class backtest():
 
 
 ticker_list = [
-     "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X","NZDUSD=X", "EURJPY=X", "EURGBP=X", "EURCHF=X"
+    # Actions
+    # "AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "META", "JPM", "XOM", "BRK-B", "LVMUY",
+    # # Indices
+    # "^GSPC", "^NDX", "^DJI", "^STOXX50E", "^FTSE", "^N225", "^HSI", "^AXJO", "^SPTSX", "^VIX",
+    # Forex
+    "EURUSD=X", 
+    # "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURJPY=X", "EURGBP=X", "EURCHF=X"
 ]
 
 

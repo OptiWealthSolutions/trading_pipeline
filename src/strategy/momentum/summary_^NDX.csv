@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+^NDX,BUY,25820.083984375,0,25133.296884937034,0.3904377874235339,0.8638436046745688

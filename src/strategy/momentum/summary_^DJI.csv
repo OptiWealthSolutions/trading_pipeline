@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+^DJI,SELL,47542.05859375,0,46786.989569450445,0.4448255756931282,0.9841765862210461

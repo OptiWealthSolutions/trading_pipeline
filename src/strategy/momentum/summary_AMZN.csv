@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+AMZN,SELL,226.97999572753906,0,218.23166114067018,0.3532980894351711,0.781672022875316

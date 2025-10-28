@@ -1,0 +1,2 @@
+ticker,signal,last_price,shares,stop,confidence_score,risk_amount
+AAPL,SELL,268.739990234375,0,259.78177246946694,0.3063511919840323,0.6778020122646715
