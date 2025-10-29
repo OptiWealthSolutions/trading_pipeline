@@ -149,3 +149,13 @@ print("Max Drawdown:", pf.max_drawdown())
 
 #equity curve
 pf.value().vbt.plot(title="Equity Curve du Spread")
+
+# Enregistrement des signaux dans un fichier CSV
+signals_df = pd.DataFrame({
+    'Date': z_score.index,
+    'Z_Score': z_score.values,
+    'Signal': signals.values,
+    'Position': positions.values
+})
+signals_df.to_csv('signals_output.csv', index=False)
+print("Signaux enregistrés dans 'signals_output.csv'")

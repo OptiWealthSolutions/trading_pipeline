@@ -346,7 +346,6 @@ class MomentumStrategy:
             self.getFeaturesDataSet()
         X = self.data_features.values 
         y = self.data['Target'].values
-        self.data['Target'].to_csv(f'target_{self.ticker}.csv')
         sample_weights = self.data['SampleWeight'].values  # poids calculés
 
         scaler = StandardScaler()
@@ -621,7 +620,13 @@ ticker_list = [
     # "^GSPC", "^NDX", "^DJI", "^STOXX50E", "^FTSE", "^N225", "^HSI", "^AXJO", "^SPTSX", "^VIX",
     # Forex
     "EURUSD=X", 
-    # "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURJPY=X", "EURGBP=X", "EURCHF=X"
+    # "GBPUSD=X", 
+    "USDJPY=X", 
+    # "AUDUSD=X", 
+    "USDCAD=X", 
+    #"USDCHF=X", 
+    "NZDUSD=X", 
+    #"EURJPY=X", "EURGBP=X", "EURCHF=X"
 ]
 
 
@@ -712,11 +717,10 @@ if __name__ == "__main__":
         data_summary = pd.concat(summaries, ignore_index=True)
         print("\n=== SIGNAL SUMMARY ===")
         print(data_summary)
-        # Save summary to CSV for each ticker
-        for summary in summaries:
-            if not summary.empty and "ticker" in summary.columns:
-                ticker = summary["ticker"].iloc[0]
-                summary.to_csv(f"summary_{ticker}.csv", index=False)
+        # Save all signals to a single CSV file
+        all_signals_path = "all_signals.csv"
+        data_summary.to_csv(all_signals_path, index=False)
+        print(f"All signals saved to {all_signals_path}")
 
         # --- Export PDF Summary ---
         try:

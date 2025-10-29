@@ -1,2 +1,0 @@
-ticker,signal,last_price,shares,stop,confidence_score,risk_amount
-EURJPY=X,SELL,177.15899658203125,1,175.9139914160977,0.5533002340056146,1.2241767677374222

@@ -1,2 +1,0 @@
-ticker,signal,last_price,shares,stop,confidence_score,risk_amount
-^N225,SELL,50189.46875,0,49346.487432037524,0.3247943574996917,0.7186075159680679
