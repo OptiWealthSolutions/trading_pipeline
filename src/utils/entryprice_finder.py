@@ -18,4 +18,4 @@ def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.0025, k=1.2, dire
     position_size = risk_amount / abs(price - stop)
     return {"entry": entry, "stop": stop, "size": position_size}
 
-optimal_entry(1.1659, 0.55, 0.0072, 885, direction="short")
+optimal_entry(0.578503, 0.507, 0.0042, 885, direction="short")
