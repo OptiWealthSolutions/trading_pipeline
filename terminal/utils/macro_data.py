@@ -7,7 +7,10 @@ from fredapi import Fred
 import plotly.graph_objects as go  
 import matplotlib.pyplot as plt 
 import sys 
-from config import macro_data_config
+from config import macro_data_config, api_key
+
+
+fred = Fred(api_key=api_key)
 
 def fetchMacroData():
     results = []

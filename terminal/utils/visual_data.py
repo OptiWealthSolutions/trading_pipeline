@@ -6,7 +6,7 @@ import seaborn as sns
 from fredapi import Fred
 import plotly.graph_objects as go  
 import matplotlib.pyplot as plt 
-
+from config import main_pairs, pairs, config
 
 def plotPrice(tickers):
     for ticker in tickers:
