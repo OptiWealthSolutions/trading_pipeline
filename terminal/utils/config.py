@@ -1,4 +1,5 @@
-api_key="e16626c91fa2b1af27704a783939bf72"
+fred_api_key="e16626c91fa2b1af27704a783939bf72"
+polygon_api_key = "Qb5kB9YukAlm3Z_KTYVkiyApew2T378G"
 
 #structure and temrinal's logic
 
