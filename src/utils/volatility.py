@@ -55,8 +55,6 @@ def getvol(ticker):
     )
     fig_minute.show()
 
-tickers = ["","",""]
 
-for ticker in tickers():
-    getvol(ticker)
+getvol("EURUSD=X")
 
