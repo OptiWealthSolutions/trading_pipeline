@@ -72,26 +72,6 @@ res = minimize(llh, method_moment(z_score, dt=1/252), args=(z_score,1/252), meth
 
 half_life = np.log(2)/theta
 
-# # Visualisation résidus et z-score
-# plt.figure(figsize=(14,6))
-# plt.subplot(2,1,1)
-# plt.plot(residuals.index, residuals, label='Residuals')
-# plt.grid(True, linestyle='--', alpha=0.5)
-# plt.ylabel("Residuals")
-# plt.title('Residuals from Regression')
-# plt.legend()
-
-# plt.subplot(2,1,2)
-# plt.plot(z_score.index, z_score, label='Z-Score', color='orange')
-# plt.axhline(0, color='black', linestyle='--')
-# plt.axhline(1.0, color='red', linestyle='--')
-# plt.axhline(-1.0, color='green', linestyle='--')
-# plt.grid(True, linestyle='--', alpha=0.5)
-# plt.ylabel("Z-Score")
-# plt.title('Z-Score of Residuals')
-# plt.legend()
-# plt.show()
-
 # Signaux adaptatifs
 window = 60
 rolling_std = z_score.rolling(window=window).std()
@@ -138,7 +118,7 @@ pf = vbt.Portfolio.from_signals(
     close=serie2,
     entries=positions_shifted==1,
     exits=positions_shifted==-1,
-    init_cash=1000,
+    init_cash=3000,
     fees=0.0005,
     freq='D'  # ou '1H' si tes données sont horaires
 )
@@ -146,6 +126,7 @@ pf = vbt.Portfolio.from_signals(
 print("Total Return:", pf.total_return())
 print("Sharpe Ratio:", pf.sharpe_ratio())
 print("Max Drawdown:", pf.max_drawdown())
+print("Half Life:", round(half_life,2))
 
 #equity curve
 pf.value().vbt.plot(title="Equity Curve du Spread")
