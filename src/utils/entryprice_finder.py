@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.0025, k=2, direction="long"):
+def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.02, k=2, direction="long"):
     risk_amount = capital * risk_pct
 
     if direction == "long":
