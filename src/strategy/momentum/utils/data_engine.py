@@ -7,7 +7,7 @@ from src.strategy.momentum.setting import HTF_interval, LTF_interval,HTF_Start_D
 class DataEngineer():
     def __init__(self):
         ticker = float
-        
+        pass
 
     def getDataLoad(self):
         data = yf.download(self.ticker, period=self.PERIOD, interval=self.INTERVAL, progress= False)
@@ -24,4 +24,4 @@ class DataEngineer():
         return data
     
     def getPCA(self):
-        
+        pass

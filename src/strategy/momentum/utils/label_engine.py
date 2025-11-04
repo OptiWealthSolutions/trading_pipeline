@@ -191,4 +191,21 @@ class SampleWeights:
         weights = np.exp(-decay * time_delta)
         return pd.Series(weights, index=self.timestamps.index) / weights.sum()
 
+class PurgedKFold:
+    def __init__(self, n_splits=5, embargo_pct=0.01):
+        self.n_splits = n_splits
+        self.embargo_pct = embargo_pct
 
+    def split(self, X, y=None, groups=None):
+        n_samples = X.shape[0]
+        test_size = n_samples // self.n_splits
+        embargo = int(n_samples * self.embargo_pct)
+        for i in range(self.n_splits):
+            test_start = i * test_size
+            test_end = test_start + test_size
+            test_idx = np.arange(test_start, test_end)
+            train_idx = np.arange(0, test_start)
+            if test_end + embargo < n_samples:
+                train_idx = np.concatenate([train_idx, np.arange(test_end + embargo, n_samples)])
+            yield train_idx, test_idx
+        return
