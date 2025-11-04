@@ -554,7 +554,8 @@ def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score
             "shares": shares,
             "stop": stop,
             "confidence_score": conf_score,
-            "risk_amount": risk_pct * capital * conf_score
+            "risk_amount": risk_pct * capital * conf_score,
+            "atr" : ms.data['atr_value']
         }
         return pd.DataFrame([row])
     else:
@@ -593,6 +594,7 @@ def main(ticker):
     else:
         atr_value = 0.01
     shares, stop = bs.position_size_with_atr(capital, risk_pct, last_price, atr_value)
+    ms.data['atr_value'] = atr_value
     summary_data = summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score)
     return ms, summary_data
 
