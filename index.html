@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Infographie : Simulation de Monte Carlo en Finance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        height: 300px;
+        margin: 1.5rem auto 0 auto;
+      }
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 400px;
+        }
+      }
+      .chart-container-sm {
+        position: relative;
+        width: 100%;
+        max-width: 350px;
+        height: 300px;
+        margin: 1.5rem auto 0 auto;
+      }
+      @media (min-width: 768px) {
+        .chart-container-sm {
+          height: 350px;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-gray-800 antialiased">
+    <header class="bg-white shadow-md sticky top-0 z-50">
+      <nav
+        class="container mx-auto px-6 py-4 flex justify-between items-center"
+      >
+        <h1 class="text-xl md:text-2xl font-bold text-[#00529B]">
+          Démystifier la Simulation Monte Carlo
+        </h1>
+        <div class="hidden md:flex space-x-6">
+          <a href="#probleme" class="text-gray-600 hover:text-[#007BFF]"
+            >Le Problème</a
+          >
+          <a href="#intuition" class="text-gray-600 hover:text-[#007BFF]"
+            >L'Intuition</a
+          >
+          <a href="#comment" class="text-gray-600 hover:text-[#007BFF]"
+            >Le "Comment"</a
+          >
+          <a href="#applications" class="text-gray-600 hover:text-[#007BFF]"
+            >Applications</a
+          >
+        </div>
+      </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+      <section id="probleme" class="text-center mb-16">
+        <h2 class="text-4xl md:text-5xl font-bold text-[#00529B] mb-6">
+          La finance déteste l'incertitude.
+        </h2>
+        <p class="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto">
+          Pourtant, tout est incertain : le prix des actions, les taux
+          d'intérêt, l'inflation... Alors, comment gérer des milliers de "Et
+          si..." pour prédire la valeur et le risque ?
+        </p>
+        <p class="text-3xl font-bold text-[#007BFF] mt-8">
+          La réponse : La Simulation de Monte Carlo
+        </p>
+      </section>
+
+      <section id="intuition" class="mb-16">
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-8">
+          <h2 class="text-3xl font-bold text-[#007BFF] mb-4">
+            C'est quoi, Monte Carlo ? L'intuition par les dés.
+          </h2>
+          <p class="text-lg text-gray-700 mb-8">
+            Imaginez que vous voulez connaître la probabilité d'obtenir un "7"
+            avec deux dés. Vous avez deux méthodes.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="border border-gray-200 rounded-lg p-6">
+              <h3 class="text-2xl font-semibold text-gray-900 mb-3">
+                Méthode 1 : Mathématique
+              </h3>
+              <p class="text-gray-700 mb-4">
+                Lister toutes les combinaisons (1+6, 2+5, 3+4...) et calculer la
+                probabilité.
+              </p>
+              <p class="text-5xl font-bold text-center text-[#00529B]">
+                16.66%
+              </p>
+              <p class="text-center text-gray-600">(6 chances sur 36)</p>
+            </div>
+
+            <div class="border border-gray-200 rounded-lg p-6">
+              <h3 class="text-2xl font-semibold text-gray-900 mb-3">
+                Méthode 2 : Monte Carlo
+              </h3>
+              <p class="text-gray-700 mb-4">
+                Lancer les dés 10 000 fois et
+                <span class="font-bold">observer</span> le résultat. C'est ça,
+                la simulation !
+              </p>
+              <p class="text-5xl font-bold text-center text-[#007BFF]">
+                ~16.7%
+              </p>
+              <p class="text-center text-gray-600">
+                (par ex. 1670 "7" sur 10 000 lancers)
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-12">
+            <h3 class="text-2xl font-semibold text-gray-900 mb-2 text-center">
+              Résultat des 10 000 lancers
+            </h3>
+            <p class="text-center text-gray-700 mb-4">
+              Au lieu de *calculer*, on *simule* des milliers de fois pour
+              *observer* la distribution des résultats. Le "7" est le plus
+              fréquent.
+            </p>
+            <div class="chart-container">
+              <canvas id="diceHistogram"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="comment" class="mb-16">
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-8">
+          <h2 class="text-3xl font-bold text-[#007BFF] mb-4">
+            Le "Comment" : Donner un prix à une option d'achat
+          </h2>
+          <p class="text-lg text-gray-700 mb-6">
+            En finance, les "dés" sont plus complexes (prix d'actions, taux...).
+            Prenons l'exemple du prix d'un 'call' (droit d'acheter une action à
+            110€ dans 1 an, alors qu'elle vaut 100€ aujourd'hui).
+          </p>
+
+          <h3 class="text-2xl font-semibold text-gray-900 mb-4 text-center">
+            Le Processus Monte Carlo en 5 Étapes
+          </h3>
+
+          <div
+            class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-12"
+          >
+            <div
+              class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center"
+            >
+              <span class="text-2xl font-bold text-[#00529B]">1. Modèle</span>
+              <p class="text-sm text-gray-600">
+                Définir la "règle du jeu" (ex: Mouvement Brownien Géométrique)
+                qui décrit comment le prix de l'action bouge (tendance +
+                hasard).
+              </p>
+            </div>
+
+            <div
+              class="flex items-center justify-center text-2xl font-bold text-[#007BFF] transform rotate-90 md:rotate-0"
+            >
+              →
+            </div>
+
+            <div
+              class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center"
+            >
+              <span class="text-2xl font-bold text-[#00529B]"
+                >2. Simuler 1 Chemin</span
+              >
+              <p class="text-sm text-gray-600">
+                Simuler UN futur possible pour le prix de l'action sur 1 an.
+              </p>
+            </div>
+
+            <div
+              class="flex items-center justify-center text-2xl font-bold text-[#007BFF] transform rotate-90 md:rotate-0"
+            >
+              →
+            </div>
+
+            <div
+              class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center"
+            >
+              <span class="text-2xl font-bold text-[#00529B]"
+                >3. Calculer Payoff</span
+              >
+              <p class="text-sm text-gray-600">
+                Pour ce chemin, calculer le gain. Ex: Si prix final = 125€,
+                Payoff = max(125-110, 0) = 15€.
+              </p>
+            </div>
+
+            <div
+              class="flex items-center justify-center text-2xl font-bold text-[#007BFF] transform rotate-90 md:rotate-0"
+            >
+              →
+            </div>
+
+            <div
+              class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center"
+            >
+              <span class="text-2xl font-bold text-[#00529B]"
+                >4. Répéter 50 000x</span
+              >
+              <p class="text-sm text-gray-600">
+                Répéter les étapes 2 et 3 des milliers de fois pour explorer
+                tous les futurs.
+              </p>
+            </div>
+
+            <div
+              class="flex items-center justify-center text-2xl font-bold text-[#007BFF] transform rotate-90 md:rotate-0"
+            >
+              →
+            </div>
+
+            <div
+              class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-center"
+            >
+              <span class="text-2xl font-bold text-[#00529B]">5. Moyenne</span>
+              <p class="text-sm text-gray-600">
+                Faire la moyenne de tous les payoffs (ex: 12€) et l'actualiser.
+                C'est le prix de l'option (ex: 11.50€).
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <div>
+              <h3 class="text-2xl font-semibold text-gray-900 mb-2 text-center">
+                Étape 2 : Simuler UN chemin
+              </h3>
+              <p class="text-center text-gray-700 mb-4">
+                Voici un futur possible simulé sur 52 semaines.
+              </p>
+              <div class="chart-container">
+                <canvas id="singlePathChart"></canvas>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-2xl font-semibold text-gray-900 mb-2 text-center">
+                Étape 4 : Répéter 50 000 fois
+              </h3>
+              <p class="text-center text-gray-700 mb-4">
+                On simule des milliers de chemins pour voir "l'explosion" des
+                possibilités.
+              </p>
+              <div class="chart-container">
+                <canvas id="multiPathChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-12">
+            <h3 class="text-2xl font-semibold text-gray-900 mb-2 text-center">
+              Étape 5 : La distribution des Payoffs
+            </h3>
+            <p class="text-center text-gray-700 mb-4">
+              Après 50 000 simulations, voici la distribution des gains.
+              Beaucoup de chemins finissent à 0€, mais certains rapportent gros.
+              La moyenne de tout cela nous donne le prix.
+            </p>
+            <div class="chart-container">
+              <canvas id="payoffHistogram"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="applications" class="mb-16">
+        <h2 class="text-3xl font-bold text-[#007BFF] mb-6 text-center">
+          Applications Concrètes en Finance
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="bg-white rounded-lg shadow-xl p-6 md:p-8">
+            <h3 class="text-2xl font-semibold text-gray-900 mb-3">
+              1. Gestion de Patrimoine (Retraite)
+            </h3>
+            <p class="text-gray-700 mb-4">
+              Les "robo-advisors" simulent 10 000 futurs possibles pour votre
+              portefeuille (marchés, inflation...) pour estimer vos chances de
+              succès.
+            </p>
+            <p class="text-center text-gray-600 mt-6">
+              "Vous avez 85% de chances d'atteindre votre objectif de retraite."
+            </p>
+            <div class="chart-container-sm">
+              <canvas id="wealthDonut"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-xl p-6 md:p-8">
+            <h3 class="text-2xl font-semibold text-gray-900 mb-3">
+              2. Gestion des Risques (Value at Risk - VaR)
+            </h3>
+            <p class="text-gray-700 mb-4">
+              Une banque simule son portefeuille entier des milliers de fois
+              pour répondre à la question :
+            </p>
+            <p class="text-center text-gray-600 font-medium italic mt-6">
+              "Quel est le montant maximum que nous pouvons perdre demain, avec
+              99% de confiance ?"
+            </p>
+            <div class="chart-container">
+              <canvas id="varChart"></canvas>
+            </div>
+            <p class="text-center text-sm text-gray-600 mt-2">
+              La barre rouge représente la perte maximale dans 99% des scénarios
+              (la VaR).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="conclusion" class="text-center mt-16 mb-8">
+        <div class="bg-white rounded-lg shadow-xl p-8 md:p-12">
+          <h2 class="text-4xl md:text-5xl font-bold text-[#00529B] mb-6">
+            Ce n'est pas une boule de cristal.
+          </h2>
+          <p class="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto">
+            La simulation Monte Carlo ne prédit pas
+            <span class="font-bold">LE</span> futur. Son pouvoir est de
+            <span class="font-bold text-[#007BFF]"
+              >quantifier l'incertitude</span
+            >.
+          </p>
+          <p class="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mt-4">
+            Elle explore des millions de futurs possibles pour nous donner une
+            <span class="font-bold">distribution de probabilités</span>,
+            transformant le "Et si...?" en "Voici à quelle fréquence...".
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="text-center p-6 bg-white border-t border-gray-200 mt-12">
+      <p class="text-gray-600">
+        Infographie créée pour illustrer les concepts de la finance
+        quantitative.
+      </p>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const palette = {
+          blue: "#007BFF",
+          darkBlue: "#00529B",
+          lightBlue: "#4DA8FF",
+          lighterBlue: "#99CCFF",
+          red: "#E11D48",
+          gray: "#6B7280",
+        };
+
+        function wrapLabels(label) {
+          if (typeof label === "string" && label.length > 16) {
+            const words = label.split(" ");
+            const lines = [];
+            let currentLine = "";
+            words.forEach((word) => {
+              if ((currentLine + word).length > 16) {
+                lines.push(currentLine.trim());
+                currentLine = word + " ";
+              } else {
+                currentLine += word + " ";
+              }
+            });
+            lines.push(currentLine.trim());
+            return lines;
+          }
+          return label;
+        }
+
+        const globalTooltipCallback = {
+          title: function (tooltipItems) {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+              return label.join(" ");
+            } else {
+              return label;
+            }
+          },
+        };
+
+        function initDiceHistogram() {
+          const ctx = document
+            .getElementById("diceHistogram")
+            ?.getContext("2d");
+          if (!ctx) return;
+
+          const labels = [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+          ];
+          const data = [
+            278, 556, 833, 1111, 1389, 1667, 1389, 1111, 833, 556, 278,
+          ];
+
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Nombre d'observations (sur 10 000)",
+                  data: data,
+                  backgroundColor: labels.map((l) =>
+                    l === "7" ? palette.blue : palette.lightBlue
+                  ),
+                  borderColor: labels.map((l) =>
+                    l === "7" ? palette.darkBlue : palette.blue
+                  ),
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: globalTooltipCallback },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "Fréquence" },
+                },
+                x: {
+                  title: { display: true, text: "Somme des deux dés" },
+                },
+              },
+            },
+          });
+        }
+
+        function generateRandomWalk(steps, startValue, drift, volatility) {
+          let data = [];
+          let value = startValue;
+          for (let i = 0; i < steps; i++) {
+            data.push(value);
+            let randomShock = (Math.random() - 0.5) * 2;
+            value *= 1 + drift + volatility * randomShock;
+            if (value < 0) value = 0;
+          }
+          return data;
+        }
+
+        function initSinglePathChart() {
+          const ctx = document
+            .getElementById("singlePathChart")
+            ?.getContext("2d");
+          if (!ctx) return;
+
+          const steps = 53;
+          const labels = Array.from({ length: steps }, (_, i) => `S${i}`);
+          const data = generateRandomWalk(steps, 100, 0.001, 0.02);
+
+          new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Prix de l'action simulé",
+                  data: data,
+                  borderColor: palette.blue,
+                  backgroundColor: "transparent",
+                  borderWidth: 2,
+                  pointRadius: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: globalTooltipCallback },
+              },
+              scales: {
+                y: {
+                  title: { display: true, text: "Prix (€)" },
+                },
+                x: {
+                  title: { display: true, text: "Semaines" },
+                  ticks: { maxTicksLimit: 10 },
+                },
+              },
+            },
+          });
+        }
+
+        function initMultiPathChart() {
+          const ctx = document
+            .getElementById("multiPathChart")
+            ?.getContext("2d");
+          if (!ctx) return;
+
+          const steps = 53;
+          const labels = Array.from({ length: steps }, (_, i) => `S${i}`);
+          const datasets = [];
+
+          for (let i = 0; i < 30; i++) {
+            datasets.push({
+              label: `Simulation ${i + 1}`,
+              data: generateRandomWalk(steps, 100, 0.001, 0.02),
+              borderColor: i === 0 ? palette.blue : "rgba(153, 204, 255, 0.5)",
+              borderWidth: i === 0 ? 2 : 1,
+              pointRadius: 0,
+            });
+          }
+
+          new Chart(ctx, {
+            type: "line",
+            data: { labels, datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: globalTooltipCallback },
+              },
+              scales: {
+                y: {
+                  title: { display: true, text: "Prix (€)" },
+                },
+                x: {
+                  title: { display: true, text: "Semaines" },
+                  ticks: { maxTicksLimit: 10 },
+                },
+              },
+            },
+          });
+        }
+
+        function initPayoffHistogram() {
+          const ctx = document
+            .getElementById("payoffHistogram")
+            ?.getContext("2d");
+          if (!ctx) return;
+
+          const labels = [
+            "0€",
+            "1-10€",
+            "11-20€",
+            "21-30€",
+            "31-40€",
+            "41-50€",
+            "50€+",
+          ];
+          const data = [28500, 8000, 5500, 3500, 2500, 1500, 500];
+
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Nombre de simulations (sur 50 000)",
+                  data: data,
+                  backgroundColor: [
+                    palette.gray,
+                    palette.lighterBlue,
+                    palette.lightBlue,
+                    palette.blue,
+                    palette.darkBlue,
+                    palette.darkBlue,
+                    palette.darkBlue,
+                  ],
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: globalTooltipCallback },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "Fréquence des simulations" },
+                },
+                x: {
+                  title: { display: true, text: "Payoff de l'option" },
+                },
+              },
+            },
+          });
+        }
+
+        function initWealthDonut() {
+          const ctx = document.getElementById("wealthDonut")?.getContext("2d");
+          if (!ctx) return;
+
+          const rawLabels = [
+            "Chance d'atteindre l'objectif",
+            "Chance de ne pas l'atteindre",
+          ];
+          const labels = rawLabels.map(wrapLabels);
+
+          new Chart(ctx, {
+            type: "doughnut",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  data: [85, 15],
+                  backgroundColor: [palette.blue, palette.lighterBlue],
+                  hoverBackgroundColor: [palette.darkBlue, palette.lightBlue],
+                  borderColor: "#ffffff",
+                  borderWidth: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: "60%",
+              plugins: {
+                legend: {
+                  position: "bottom",
+                  labels: {
+                    boxWidth: 20,
+                  },
+                },
+                tooltip: {
+                  callbacks: {
+                    title: (tooltipItems) => {
+                      return rawLabels[tooltipItems[0].dataIndex];
+                    },
+                    label: (context) => {
+                      return `${context.parsed}%`;
+                    },
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        function initVaRChart() {
+          const ctx = document.getElementById("varChart")?.getContext("2d");
+          if (!ctx) return;
+
+          const labels = [
+            "-10M",
+            "-8M",
+            "-6M",
+            "-4M",
+            "-2M",
+            "0M",
+            "2M",
+            "4M",
+            "6M",
+            "8M",
+          ];
+          const data = [100, 400, 1000, 2500, 4000, 5000, 3500, 1500, 700, 300];
+          const varIndex = 1;
+
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Nombre de scénarios (sur 20 000)",
+                  data: data,
+                  backgroundColor: data.map((_, i) =>
+                    i <= varIndex ? palette.red : palette.lightBlue
+                  ),
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: globalTooltipCallback },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "Fréquence des scénarios" },
+                },
+                x: {
+                  title: {
+                    display: true,
+                    text: "Perte / Gain du portefeuille",
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        initDiceHistogram();
+        initSinglePathChart();
+        initMultiPathChart();
+        initPayoffHistogram();
+        initWealthDonut();
+        initVaRChart();
+      });
+    </script>
+  </body>
+</html>

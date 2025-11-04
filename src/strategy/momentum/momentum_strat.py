@@ -555,7 +555,7 @@ def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score
             "stop": stop,
             "confidence_score": conf_score,
             "risk_amount": risk_pct * capital * conf_score,
-            "atr" : ms.data['atr_value']
+            "atr" : ms.data['atr_value'].iloc[-1]
         }
         return pd.DataFrame([row])
     else:

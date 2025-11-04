@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.0025, k=1.2, direction="long"):
+def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.0025, k=2, direction="long"):
     risk_amount = capital * risk_pct
 
     if direction == "long":
@@ -18,4 +18,4 @@ def optimal_entry(price, signal_prob, atr, capital, risk_pct=0.0025, k=1.2, dire
     position_size = risk_amount / abs(price - stop)
     return {"entry": entry, "stop": stop, "size": position_size}
 
-optimal_entry(1.62057, 0.928626, 0.0042, 885, direction="short")
+optimal_entry(1.62057, 0.928626, 0.0014, 885, direction="short")
