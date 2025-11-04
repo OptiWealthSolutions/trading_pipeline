@@ -283,6 +283,7 @@ class MomentumStrategy:
         self.data['vol_adjustment'] = vol_adj_arr
 
         return self.data
+    
     def getSampleWeight(self, decay=0.01):
         sw = SampleWeights(labels=self.data['Target'], features=self.data_features, timestamps=self.data.index)
         label_endtimes = None
@@ -305,6 +306,7 @@ class MomentumStrategy:
         full_weights = combined.reindex(self.data.index).fillna(0)
         self.data['SampleWeight'] = full_weights
         return full_weights
+    
     # --- Primary Model ---
     def PrimaryModel(self, n_splits=5):
         if not hasattr(self, 'data_features') or self.data_features.empty:
