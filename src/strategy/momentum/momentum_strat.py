@@ -1,5 +1,4 @@
 
-#package importation
 import vectorbt as vbt
 import pandas as pd
 import numpy as np
@@ -18,22 +17,22 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
-import os 
+import os
 # --- PDF reportlab imports ---
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+
 class PurgedKFold:
     def __init__(self, n_splits=5, embargo_pct=0.01):
         self.n_splits = n_splits
         self.embargo_pct = embargo_pct
 
     def split(self, X, y=None, groups=None):
-        n_samples = X.shape[0] #nb de sample grace a la taille de la data_features
+        n_samples = X.shape[0]
         test_size = n_samples // self.n_splits
         embargo = int(n_samples * self.embargo_pct)
-
         for i in range(self.n_splits):
             test_start = i * test_size
             test_end = test_start + test_size
@@ -44,9 +43,8 @@ class PurgedKFold:
             yield train_idx, test_idx
         return
 
-class SampleWeights():
+class SampleWeights:
     def __init__(self, labels, features, timestamps):
-        # Aligner correctement index et timestamps
         self.timestamps = pd.Series(timestamps, index=timestamps)
         self.labels = pd.Series(labels, index=timestamps)
         self.features = features
@@ -59,12 +57,9 @@ class SampleWeights():
             label_endtimes = self.timestamps
         molecules = label_endtimes.index
         all_ranges = [(start, label_endtimes[start]) for start in molecules]
-
-        # Créer un DatetimeIndex unique pour toutes les périodes
         all_times = pd.date_range(self.timestamps.min(), self.timestamps.max(), freq='D')
         indicator = np.zeros((len(molecules), len(all_times)), dtype=np.uint8)
         time_pos = {dt: idx for idx, dt in enumerate(all_times)}
-
         for sample_idx, (start, end) in enumerate(all_ranges):
             if pd.isna(start) or pd.isna(end):
                 continue
@@ -72,8 +67,6 @@ class SampleWeights():
             valid_idx = [time_pos[dt] for dt in rng if dt in time_pos]
             if valid_idx:
                 indicator[sample_idx, valid_idx] = 1
-
-        # S'assurer qu'aucune ligne n'est vide
         indicator[indicator.sum(axis=1) == 0, 0] = 1
         return pd.DataFrame(indicator, index=molecules, columns=all_times)
 
@@ -81,7 +74,7 @@ class SampleWeights():
         timestamp_usage_count = indicator_matrix.sum(axis=0).values
         mask = indicator_matrix.values.astype(bool)
         uniqueness_matrix = np.divide(
-            mask, 
+            mask,
             timestamp_usage_count,
             out=np.zeros_like(mask, dtype=float),
             where=timestamp_usage_count > 0
@@ -103,14 +96,12 @@ class SampleWeights():
             sample_length = n_samples
         avg_uniqueness = self.getAverageUniqueness(indicator_matrix)
         probabilities = avg_uniqueness / avg_uniqueness.sum()
-
         all_choices = np.random.choice(
             n_samples,
             size=n_simulations * sample_length,
             replace=True,
             p=probabilities.values
         ).reshape(n_simulations, sample_length)
-
         counts = np.bincount(all_choices.ravel(), minlength=n_samples)
         sample_weights = pd.Series(counts, index=indicator_matrix.index)
         sample_weights /= sample_weights.sum() if sample_weights.sum() > 0 else 1
@@ -218,7 +209,6 @@ class MomentumStrategy:
 
     # --- Labeling / Weights ---
     def getLabels(self, max_hold_days=12, stop_loss=0.01, profit_target=0.05, volatility_scaling=True):
-        # Barrières adaptatives à la volatilité, avec enregistrement du facteur d'ajustement
         prices = self.data['Close']
         n = len(prices)
         prices_array = prices.values
@@ -237,7 +227,6 @@ class MomentumStrategy:
                     return -1, i  # Stop loss hit
             return 0, end_idx  # Time barrier hit
 
-        # Calcul de la volatilité roulante si scaling activé
         if volatility_scaling:
             returns = prices.pct_change()
             vol = returns.rolling(20).std().fillna(returns.std())
@@ -246,7 +235,6 @@ class MomentumStrategy:
             vol_filled = None  # Pas utilisé
 
         for i in range(n):
-            # Skip si prix manquant
             if np.isnan(prices_array[i]):
                 labels[i] = 0
                 entry_dates.append(prices.index[i])
@@ -259,7 +247,6 @@ class MomentumStrategy:
                 vol_adj_arr.append(1.0)
                 continue
 
-            # Ajustement des barrières selon volatilité
             if volatility_scaling:
                 vol_value = float(vol_filled.iloc[i])
                 vol_adj = max(vol_value / 0.02, 0.5)
@@ -285,7 +272,6 @@ class MomentumStrategy:
             barrier_hit.append(['Time', 'Profit', 'Loss'][label + 1])
             vol_adj_arr.append(vol_adj)
 
-        # Mise à jour du DataFrame
         self.data['Target'] = labels
         self.data['label_entry_date'] = entry_dates
         self.data['label_exit_date'] = exit_dates
@@ -298,99 +284,62 @@ class MomentumStrategy:
 
         return self.data
     def getSampleWeight(self, decay=0.01):
-        """Compute and store sample weights using the SampleWeights helper class.
-
-        This replaces the previous implementation that incorrectly called methods
-        (getIndMatrix, getRarity, ...) on the MomentumStrategy instance.
-        """
-        # Instantiate helper with labels, features and timestamps
         sw = SampleWeights(labels=self.data['Target'], features=self.data_features, timestamps=self.data.index)
-
-        # Prefer explicit label end times if available (label_exit_date), otherwise leave None
         label_endtimes = None
         if 'label_exit_date' in self.data.columns:
             label_endtimes = self.data['label_exit_date']
-
-        # Build indicator matrix and weight components via the helper
         indicator_matrix = sw.getIndMatrix(label_endtimes=label_endtimes)
         rarity_weights = sw.getRarity()
         recency_weights = sw.getRecency(decay)
         sequential_weights = sw.getSequentialBootstrap(indicator_matrix)
-
-        # Align indices and combine multiplicatively
         common_index = rarity_weights.index.intersection(recency_weights.index).intersection(sequential_weights.index)
         combined = (
             rarity_weights.loc[common_index].fillna(0) *
             recency_weights.loc[common_index].fillna(0) *
             sequential_weights.loc[common_index].fillna(0)
         )
-
-        # Normalize
         if combined.sum() > 0:
             combined = combined / combined.sum()
         else:
-            # fallback: uniform weights over full dataset
             combined = pd.Series(np.ones(len(self.data.index)) / len(self.data.index), index=self.data.index)
-
-        # Reindex to the full dataframe index and fill missing with 0
         full_weights = combined.reindex(self.data.index).fillna(0)
-
-        # Store in the main dataframe for later use by PrimaryModel
         self.data['SampleWeight'] = full_weights
-
         return full_weights
     # --- Primary Model ---
     def PrimaryModel(self, n_splits=5):
-        # S'assurer que data_features est bien initialisé
         if not hasattr(self, 'data_features') or self.data_features.empty:
             self.getFeaturesDataSet()
-        X = self.data_features.values 
+        X = self.data_features.values
         y = self.data['Target'].values
-        sample_weights = self.data['SampleWeight'].values  # poids calculés
-
+        sample_weights = self.data['SampleWeight'].values
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-        # herite de la classe PurgerKfold pour faire une 
-        # cross-validation temporelle avec embargo et purge
         tscv = PurgedKFold(n_splits=n_splits, embargo_pct=0.01)
         scores = []
         reports = []
         cms = []
         f1_score_ = []
-        last_pred = []
-        # gris search CV
         for train_idx, test_idx in tscv.split(X_scaled):
             X_train, X_test = X_scaled[train_idx], X_scaled[test_idx]
             y_train, y_test = y[train_idx], y[test_idx]
             w_train = sample_weights[train_idx]
-            # model tuning and hyper parameter
             model = RandomForestClassifier(
                 n_estimators=100,
                 max_depth=10,
                 class_weight='balanced',
                 random_state=42
             )
-
             model.fit(X_train, y_train, sample_weight=w_train)
             y_pred = model.predict(X_test)
-
             scores.append(accuracy_score(y_test, y_pred))
             reports.append(classification_report(y_test, y_pred, output_dict=True))
             cms.append(confusion_matrix(y_test, y_pred))
             f1_score_.append(f1_score(y_test, y_pred, average='weighted'))
-        print("\n=== PRIMARY MODEL RESULTS ===")
-        print(f"Average Accuracy : {round((np.mean(scores)*100),2)} %")
-        # Metrics
-        print(f"Average F1 Score : {round(np.mean(f1_score_)*100,2)} %")
-        # Générer les signaux du modèle principal pour toutes les dates
         primary_preds = model.predict(X_scaled)
         self.data['primary_signal'] = primary_preds
         last_pred = primary_preds[-1]
-        print("Last prediction", last_pred)
         last_proba = model.predict_proba(X_test)[-1]
-        print(f"Last prediction probability: {last_proba}")
         self.meta_data = pd.DataFrame(model.predict_proba(X_scaled), index=self.data.index)
-        # Stocker les prédictions pour les meta-features
         self.primary_predictions = primary_preds
         self.last_proba = last_proba
         self.last_pred = last_pred
@@ -399,13 +348,11 @@ class MomentumStrategy:
     # --- Meta Features ---
     def getEntropy(self):
         probabilities = self.meta_data.values
-        # Éviter log(0) en ajoutant un epsilon
         epsilon = 1e-10
         probabilities = np.clip(probabilities, epsilon, 1 - epsilon)
-        # Calcul de l'entropie : -sum(p * log(p))
         entropy = -np.sum(probabilities * np.log(probabilities), axis=1)
-        self.meta_features_data['prediction_entropy'] = entropy 
-        return 
+        self.meta_features_data['prediction_entropy'] = entropy
+        return
 
     def getMaxProbability(self):
         max_probs = np.max(self.meta_data.values, axis=1)
@@ -420,12 +367,11 @@ class MomentumStrategy:
         return margin
     
     def getF1Scoredata(self, y_true, y_pred, window_size=50):
-        """Calcule le F1-score sur une fenêtre glissante pour tout le dataset"""
         rolling_f1 = []
         for i in range(len(y_pred)):
             start_idx = max(0, i - window_size + 1)
             end_idx = i + 1
-            if end_idx - start_idx >= 10:  # Minimum d'échantillons
+            if end_idx - start_idx >= 10:
                 window_f1 = f1_score(
                     y_true[start_idx:end_idx],
                     y_pred[start_idx:end_idx],
@@ -438,12 +384,11 @@ class MomentumStrategy:
         return rolling_f1
 
     def getAccuracydata(self, y_true, y_pred, window_size=50):
-        """Calcule l'accuracy sur une fenêtre glissante pour tout le dataset"""
         rolling_acc = []
         for i in range(len(y_pred)):
             start_idx = max(0, i - window_size + 1)
             end_idx = i + 1
-            if end_idx - start_idx >= 10:  # Minimum d'échantillons
+            if end_idx - start_idx >= 10:
                 window_acc = accuracy_score(
                     y_true[start_idx:end_idx],
                     y_pred[start_idx:end_idx]
@@ -457,24 +402,13 @@ class MomentumStrategy:
     def getMetaFeaturesdata(self):
         return self.meta_features_data
 
-    #=== Tableau de comprehension du duo primary et meta model ===
-    # 1 et 1 =-> Strong BUY
-    # 1 et 0 =-> ignore
-    # 0 et 1 =-> no signal
-    # 0 et 0 =-> no signal
-    # -1 et 1 =-> Strong SELL
-    # -1 et 0 =-> ignore
-
     # --- Meta Labelling ---
     def metaLabeling(self):
-        # Utiliser les prédictions du modèle principal pour déterminer les signaux
         model_predictions = self.primary_predictions != 0  # True si le modèle a généré un signal
         actual_profitable = self.data['label_return'] > 0     # True si le trade était profitable
         
-        # Meta-label: 1 si signal ET profitable, 0 sinon
         meta_labels = (model_predictions & actual_profitable).astype(int)
         
-        # Créer le DataFrame meta_data à partir des dates correspondantes
         self.meta_data = pd.DataFrame(index=self.data.index)
         self.meta_data['meta_label'] = meta_labels
         
@@ -484,11 +418,8 @@ class MomentumStrategy:
     def MetaModel(self):
         X = self.meta_features_data.values
         y = self.meta_data['meta_label'].values
-        
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-
-        # Split temporel
         tscv = PurgedKFold(n_splits=5, embargo_pct=0.01)
         scores = []
         reports = []
@@ -497,7 +428,6 @@ class MomentumStrategy:
         for train_idx, test_idx in tscv.split(X_scaled):
             X_train, X_test = X_scaled[train_idx], X_scaled[test_idx]
             y_train, y_test = y[train_idx], y[test_idx]
-            # model tuning and hyper parameter
             meta_model = XGBClassifier(
                 n_estimators=100,
                 max_depth=10,
@@ -510,8 +440,6 @@ class MomentumStrategy:
             reports.append(classification_report(y_test, y_pred, output_dict=True))
             cms.append(confusion_matrix(y_test, y_pred))
             f1_score_.append(f1_score(y_test, y_pred, average='weighted'))
-
-        # Calcul de l'ATR (14 jours rolling)
         high = self.data['High'] if 'High' in self.data.columns else self.data['Close']
         low = self.data['Low'] if 'Low' in self.data.columns else self.data['Close']
         close = self.data['Close']
@@ -521,20 +449,10 @@ class MomentumStrategy:
             (low - close.shift(1)).abs()
         ], axis=1).max(axis=1)
         atr_value = tr.rolling(14).mean().iloc[-1]
-
-        # Prédictions
-        print("\n=== META MODEL RESULTS ===")
-        print(f"Average Accuracy Meta Model: {round((np.mean(scores)*100),2)} %")
-        print(f"Average F1 Score Meta Model: {round(np.mean(f1_score_)*100,2)} %")
-        print(f"Average ATR (14 days): {round(atr_value, 4)}")
-        # Prédire les signaux méta sur tout l'historique
         self.meta_preds = meta_model.predict(X_scaled)
         self.data['meta_signal'] = self.meta_preds
         last_pred = self.meta_preds[-1]
-        print(f"Meta Model Last Prediction: {last_pred}")
         last_proba_meta = meta_model.predict_proba(X_test)[-1]
-        print(f"Meta Model Last Prediction Probability: {last_proba_meta}")
-        #variable for backtesting functionnement
         self.last_proba_meta = last_proba_meta
         self.last_pred_meta = last_pred
         return meta_model, last_proba_meta
@@ -546,51 +464,44 @@ class MomentumStrategy:
         primary_conf = float(np.max(self.last_proba)) if hasattr(self.last_proba, '__len__') else float(self.last_proba)
         meta_conf = float(np.max(self.last_proba_meta)) if hasattr(self.last_proba_meta, '__len__') else float(self.last_proba_meta)
         conf_score = primary_conf * meta_conf
-        print(f"Confidence Score: {round(conf_score*100,2)} %")
         return conf_score
     
-class BetSizing():
+class BetSizing:
     def __init__(self, ticker):
         self.ticker = ticker
         self.capital = None
         self.risk_pct = None
         self.leverage = 30
-    # Taille de la position = Taille du compte x Risque du compte / Point d'invalidation
     def getlastPrice(self):
         data = yf.download(self.ticker, period="1d", interval='1m', progress=False)['Close']
         last_price = float(data.iloc[-1])
         return last_price
 
     def position_size_with_atr(self, capital, risk_pct, entry_price, atr_value, atr_mult=2):
-        if atr_value < 0.1:  # heuristic: treat as percentage
+        if atr_value < 0.1:
             atr_abs = atr_value * entry_price
         else:
             atr_abs = atr_value
         stop_price = entry_price - atr_mult * atr_abs
-        risk_amount = capital * risk_pct 
+        risk_amount = capital * risk_pct
         risk_per_share = abs(entry_price - stop_price)
         if risk_per_share == 0:
             return 0, stop_price
         shares = risk_amount // risk_per_share
         max_shares = capital // entry_price
         shares = min(shares, max_shares)
-        print(f"Entry Price: {entry_price:.2f}")
-        print(f"Stop Loss (ATR {atr_mult}x): {stop_price:.2f}")
-        print(f"Capital: {capital} | Risk per trade: {risk_amount:.2f}")
-        print(f"Position Size: {int(shares)} shares (max levier {self.leverage}x)")
         return int(shares), stop_price
 
 
-# === Backtest with vectorbt ===
-class backtest():
+class Backtest:
     def __init__(self, ms):
-        self.ms = ms  # stocke l'objet MomentumStrategy
+        self.ms = ms
         self.data_backtest = self.ms.data.loc["2012-01-01":"2025-01-01"].copy()
         self.data_backtest['signal'] = 0
         self.data_backtest.loc[(self.data_backtest['primary_signal'] == 1) & (self.data_backtest['meta_signal'] == 1), 'signal'] = 1
         self.data_backtest.loc[(self.data_backtest['primary_signal'] == -1) & (self.data_backtest['meta_signal'] == 1), 'signal'] = -1
         self.entries = self.data_backtest['signal'] == 1
-        self.exits   = self.data_backtest['signal'] == -1
+        self.exits = self.data_backtest['signal'] == -1
 
     def portfolio(self):
         self.pf = vbt.Portfolio.from_signals(
@@ -601,38 +512,33 @@ class backtest():
             fees=0.005,
             freq="1D"
         )
-        
-        print("\n=== VECTORBT BACKTEST RESULTS ===")
-        print(self.pf.stats())
         self.data_backtest['portfolio_value'] = self.pf.value()
         sharpe_ratio = self.pf.sharpe_ratio()
-        print(f"Sharpe ratio: {sharpe_ratio}")
         self.data_backtest['portfolio_value'].plot()
         plt.show()
-
         return self.ms
 
 
+
+# --- GLOBALS & MAIN ---
+
 ticker_list = [
-    # Actions
-    # "AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "META", "JPM", "XOM", "BRK-B", "LVMUY",
-    # # Indices
-    # "^GSPC", "^NDX", "^DJI", "^STOXX50E", "^FTSE", "^N225", "^HSI", "^AXJO", "^SPTSX", "^VIX",
-    # Forex
-    "EURUSD=X", 
-    # "GBPUSD=X", 
-    "USDJPY=X", 
-    # "AUDUSD=X", 
-    "USDCAD=X", 
-    #"USDCHF=X", 
-    "NZDUSD=X", 
-    #"EURJPY=X", "EURGBP=X", "EURCHF=X"
+    # --- Paires majeures (USD base ou contrepartie) ---
+    "EURUSD=X",  # Euro / Dollar américain
+    "GBPUSD=X",  # Livre sterling / Dollar américain
+    "USDCAD=X",  # Dollar américain / Dollar canadien
+    "USDCHF=X",  # Dollar américain / Franc suisse
+    "USDJPY=X",  # Dollar américain / Yen japonais
+
+    # --- Paires croisées principales ---
+    "EURGBP=X",  # Euro / Livre sterling
+    "EURCAD=X",  # Euro / Dollar canadien
+    "GBPCAD=X",  # Livre sterling / Dollar canadien
+    "EURCHF=X",  # Euro / Franc suisse
+    "GBPCHF=X",  # Livre sterling / Franc suisse
 ]
 
-
-
 def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score):
-    # Get last row index (date)
     primary_signal = ms.data['primary_signal'].iloc[-1] if 'primary_signal' in ms.data.columns else 0
     meta_signal = ms.data['meta_signal'].iloc[-1] if 'meta_signal' in ms.data.columns else 0
     signal = None
@@ -640,7 +546,6 @@ def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score
         signal = "BUY"
     elif (primary_signal == -1) and (meta_signal == 1):
         signal = "SELL"
-    # Only summarize if there is a valid signal
     if signal is not None:
         row = {
             "ticker": ms.ticker,
@@ -657,7 +562,6 @@ def summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score
 
 
 def main(ticker):
-    print(f"\n--- Processing {ticker} ---")
     ms = MomentumStrategy(ticker)
     ms.getRSI()
     ms.PriceMomentum()
@@ -680,24 +584,16 @@ def main(ticker):
     ms.metaLabeling()
     ms.MetaModel()
     conf_score = ms.computeConfidenceScore()
-
-    # BetSizing integration
     bs = BetSizing(ms.ticker)
     last_price = bs.getlastPrice()
     capital = 885
-    risk_pct = 0.0025
-    ##### ==== #faire un risque adapté au position deja ouverte ====
+    risk_pct = 0.01
     if 'log_return' in ms.data.columns:
         atr_value = ms.data['log_return'].rolling(14).std().iloc[-1]
     else:
         atr_value = 0.01
     shares, stop = bs.position_size_with_atr(capital, risk_pct, last_price, atr_value)
-
-    # Summarize signal
     summary_data = summarize_signal(ms, shares, stop, last_price, capital, risk_pct, conf_score)
-
-    # bt = backtest(ms)
-    # bt.portfolio()
     return ms, summary_data
 
 if __name__ == "__main__":
@@ -711,18 +607,13 @@ if __name__ == "__main__":
                 summaries.append(summary_data)
         except Exception as e:
             print(f"Erreur sur {ticker}: {e}")
-
-    # Concatenate all summaries and print
     if summaries:
         data_summary = pd.concat(summaries, ignore_index=True)
         print("\n=== SIGNAL SUMMARY ===")
         print(data_summary)
-        # Save all signals to a single CSV file
         all_signals_path = "all_signals.csv"
         data_summary.to_csv(all_signals_path, index=False)
         print(f"All signals saved to {all_signals_path}")
-
-        # --- Export PDF Summary ---
         try:
             pdf_path = "summary_signals.pdf"
             doc = SimpleDocTemplate(pdf_path, pagesize=A4)
@@ -731,8 +622,6 @@ if __name__ == "__main__":
             title = Paragraph("Trading Signal Summary Report", styles["Heading1"])
             elements.append(title)
             elements.append(Spacer(1, 12))
-
-            # Convert DataFrame to list for table creation
             table_data = [list(data_summary.columns)] + data_summary.values.tolist()
             table = Table(table_data)
             table_style = TableStyle([
@@ -745,7 +634,6 @@ if __name__ == "__main__":
             ])
             table.setStyle(table_style)
             elements.append(table)
-
             doc.build(elements)
             print(f"PDF summary saved as: {pdf_path}")
         except Exception as e:

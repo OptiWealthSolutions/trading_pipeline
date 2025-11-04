@@ -8,15 +8,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # --- CONFIGURATION ---
-TICKERS = ['PEP', 'KO']           # [asset_X, asset_Y] convention used in code (X hedged by Y)
-START_DATE = '2020-01-01'
-END_DATE = '2023-12-31'
-INTERVAL = '1d'                   # '1d' or '1h' etc.
+TICKERS = ['EURUSD=X', 'GBPUSD=X']           # [asset_X, asset_Y] convention used in code (X hedged by Y)
+START_DATE = '2025-07-01'
+END_DATE = '2025-10-31'
+INTERVAL = '1h'                   # '1d' or '1h' etc.
 LOOKBACK_WINDOW = 252             # window for rolling beta / spread statistics
-ENTRY_THRESHOLD_MULT = 2.0        # entry threshold in z-score units
-EXIT_THRESHOLD_MULT = 0.5         # exit threshold in z-score units
-INIT_CASH = 10000
-FEES = 0.001                      # 0.1% fees per trade
+ENTRY_THRESHOLD_MULT = 1.5        # entry threshold in z-score units
+EXIT_THRESHOLD_MULT = 0.8         # exit threshold in z-score units
+INIT_CASH = 800
+FEES = 0.005                      # 0.1% fees per trade
 
 # --- UTILITIES ---
 
@@ -163,13 +163,21 @@ def pairs_trading(tickers=TICKERS, start=START_DATE, end=END_DATE, interval=INTE
         'position': positions_shifted  # actual position used to compute returns
     }).dropna()
 
-    # 7) Print performance summary
-    print("\n--- Performance summary ---")
-    stats = pf.stats()
-    # Print a filtered subset if available
-    keys = ['Total Return [%]', 'Sharpe Ratio', 'Max Drawdown [%]', 'Total # of Trades']
-    avail = [k for k in keys if k in stats.index]
-    print(stats.loc[avail])
+   # 7) Performance summary (manual metrics)
+    print("\n--- Performance Summary ---")
+    total_return = (pf['value'].iloc[-1] / init_cash - 1) * 100
+    daily_ret = port_rets.fillna(0)
+    annualized_volatility = daily_ret.std() * np.sqrt(252)
+    annualized_return = daily_ret.mean() * 252
+    risk_free_rate = 0.02
+    sharpe_ratio = (annualized_return - risk_free_rate) / annualized_volatility if annualized_volatility != 0 else 0
+    max_drawdown = ((pf['value'] / pf['value'].cummax()) - 1).min() * 100
+
+    print(f"Total Return [%]: {total_return:.2f}")
+    print(f"Annualized Return [%]: {annualized_return*100:.2f}")
+    print(f"Annualized Volatility [%]: {annualized_volatility*100:.2f}")
+    print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+    print(f"Max Drawdown [%]: {max_drawdown:.2f}")
 
     # 8) Plot: equity + z-score + signals
     fig, axs = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
@@ -189,8 +197,10 @@ def pairs_trading(tickers=TICKERS, start=START_DATE, end=END_DATE, interval=INTE
     axs[1].legend()
     axs[1].set_ylabel("Z-score")
 
-    pf.value().vbt.plot(ax=axs[2], title='Equity Curve (pairs portfolio)')
+    axs[2].plot(pf.index, pf['value'], color='orange', label='Equity Curve')
     axs[2].set_ylabel("Valeur du portefeuille")
+    axs[2].legend()
+    axs[2].set_title('Equity Curve (pairs portfolio)')
 
     plt.tight_layout()
     plt.show()
